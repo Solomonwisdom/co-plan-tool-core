@@ -43,7 +43,7 @@ VELOCITY = 0
 
 def initialize_point():
     global POINT
-    f = open("data/point.txt")
+    f = open(CUR_DIR + "data/point.txt")
     lines = f.read().splitlines()
     for line in lines:
         temp = line.split(" ")
@@ -53,7 +53,7 @@ def initialize_point():
 def initialize_dist():
     global DIST
     DIST = [[float(0) for i in range(NUM_OF_POINT)] for j in range(NUM_OF_POINT)]
-    f = open("data/route.txt")
+    f = open(CUR_DIR + "data/route.txt")
     lines = f.read().splitlines()
     for line in lines:
         temp = line.split(" ")
@@ -179,8 +179,8 @@ def generate_boarder():
 load_file()
 
 def handle(event, context):
+    global MISSIONS
     tmp = event['data']
-    tmp = tmp.decode(("utf-8"))
     if type(tmp)==bytes: 
         tmp = json.loads(tmp)
     if type(tmp) != dict:
@@ -188,21 +188,17 @@ def handle(event, context):
     if "mission" in tmp:
         file_content = tmp['mission']
         first_line = file_content.splitlines()[0]
-        print(file_content)
         if len(first_line.split()) == 3 and first_line.split()[0].isdigit():
-            global MISSIONS
             MISSIONS = []
             lines = file_content.splitlines()
             for line in lines:
                 tmp = line.split()
                 MISSIONS.append([int(tmp[0]), int(tmp[1]), int(tmp[2])])
-            print(MISSIONS)
             with open(CUR_DIR + "MISSION.json", "w") as f:
                 f.write(json.dumps(MISSIONS))
             message = "success"
             response_body = json.dumps({"status": message})
         elif len(first_line.split()) == 3 and first_line.split()[0]=="center":
-            global CENTER, RADIUS, VELOCITY
             lines = file_content.splitlines()
             for line in lines:
                 tmp = line.split()
@@ -226,11 +222,11 @@ def handle(event, context):
     else:
         input_from_ui = tmp
         t = input_from_ui["type"]
+        global NUM_OF_FLIGHT, INTEL, MODEL, TODO_LIST, POSITION
         if t==0:
             # print(input_from_ui)
             print("Optimization goal: {}".format(input_from_ui['select']))
             # print("Intel algo: {}".format(input_from_ui['switch']))
-            global NUM_OF_FLIGHT, INTEL, MODEL
             NUM_OF_FLIGHT = input_from_ui['slider']
             INTEL = input_from_ui['switch']
             if input_from_ui['select'] == "minimize totole waiting time":
@@ -246,12 +242,13 @@ def handle(event, context):
             response_body = json.dumps({"message": "save success", "model": MODEL})
             return response_body
         if t==1:
-            global NUM_OF_FLIGHT, INTEL, MODEL, TODO_LIST, POSITION, MISSIONS 
             with open(CUR_DIR + "MISSION.json", "r") as f:
                 MISSIONS = json.load(f)
+            print(MISSIONS)
             if os.path.isfile(CUR_DIR + 'output.json'):
                 with open(CUR_DIR + "output.json", "r") as f:
                     content = json.load(f)
+                    print(content)
                     TODO_LIST = content['TODO_LIST']
                     POSITION = content['POSITION']
             print("planning...")
@@ -275,15 +272,11 @@ def handle(event, context):
                 return response_body
             elif MODEL == 2:
                 circle = {}
-                global CENTER, RADIUS, VELOCITY
                 with open(CUR_DIR + "CIRCLE.json", "r") as f:
                     circle = json.load(f)
                 CENTER = circle['CENTER']
                 RADIUS = circle['RADIUS']
                 VELOCITY = circle['VELOCITY']
-                MODEL = input['MODEL']
-                NUM_OF_FLIGHT = input['NUM_OF_FLIGHT']
-                INTEL = input['INTEL']
                 boarder = generate_boarder()
                 uav = handle_relay(NUM_OF_FLIGHT, deepcopy(CENTER), RADIUS, VELOCITY)
                 info = generate_relay(uav)
